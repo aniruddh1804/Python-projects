@@ -1,10 +1,6 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix
-import numpy as np
-
 from Constants import *
 from Utils import *
 
@@ -14,10 +10,7 @@ df = pd.read_csv('C:/Users/atejomurtula/Documents/MACHINE LEARNING/Loan predicti
 allNumericFeatures = list(set(df.columns) - set(allCategoricalFeatures))
 
 allNumericFeatures.remove(targetVariable)
-
-
 # df['Credit_History_map'] = map_null_values(CREDIT_HISTORY,False)
-
 
 def fill_null_values():
     df[GENDER].fillna('No gender', inplace=True)
@@ -36,37 +29,32 @@ def fill_null_values():
 
 fill_null_values()
 
+# convert categorical features to numbers (ordinal)
+to_numbers_features = allCategoricalFeatures + [targetVariable]
+to_numbers_features.remove(LOAN_AMOUNT_TERM)
+to_numbers_features.remove(PROPERTY_AREA)
+convert_data_to_numbers(to_numbers_features, df)
 
 
-# _______________DATA UNDERSTANDING______________________
-# print(df.pivot_table(values=targetVariable, columns=['applicant_income_median'], aggfunc=np.sum))
-# df[GENDER] = df[GENDER].map({'Male': 2, 'Female': 0, 'No gender': 1})
-# df[MARRIED] = df[MARRIED].map({'No': 1, 'Yes': 0})
-# df[EDUCATION] = df[EDUCATION].map({'Graduate': 1, 'Not Graduate': 0})
-# df[SELF_EMPLOYED] = df[SELF_EMPLOYED].map({'Yes' : 0, 'No' : 1})
-df[targetVariable] = df[targetVariable].map({'Y': 1, 'N': 0})
-
-
-# print(df['applicant_income_median'].head())
-
-# df[LOAN_AMOUNT+LOG] = np.log(df[LOAN_AMOUNT])
-# histogram(df, LOAN_AMOUNT, 20, np.nan)
-
-# le = LabelEncoder()
-#
-# for col in allCategoricalFeatures:
-#     df[col] = le.fit_transform(df[col])
-
-Y = df[targetVariable].to_frame()
-
+# transform continuous features
 sc_x = StandardScaler()
-df[APPLICANT_INCOME] = pd.DataFrame(np.log(df[APPLICANT_INCOME]))
-X = sc_x.fit_transform(df.ApplicantIncome.values.reshape(-1,1))
+df[APPLICANT_INCOME] = sc_x.fit_transform(df.ApplicantIncome.values.reshape(-1,1))
+df[LOAN_AMOUNT] = sc_x.fit_transform(df.LoanAmount.values.reshape(-1,1))
+df[CO_APPLICANT_INCOME] = sc_x.fit_transform(df.CoapplicantIncome.values.reshape(-1,1))
+
+# one hot encoding non ordinal features
+property_area_df = pd.get_dummies(df[PROPERTY_AREA])
+df = pd.concat([df, property_area_df], axis='columns')
+
+
+# machine learning
+Y = df[targetVariable].to_frame()
+X = df.drop([targetVariable, PROPERTY_AREA, LOAN_ID], axis=1)
 model = LogisticRegression()
-model.fit(X, Y)
-Y_pred = model.predict(X)
-print(X[0:4])
-print(confusion_matrix(Y_pred, Y))
-colors = np.where(df[LOAN_STATUS] == 1, 'y', 'k')
-plt.scatter(list(df[LOAN_AMOUNT]), list(X), c=df[LOAN_STATUS])
-plt.show()
+classification_model(model, X, Y, 0.2)
+
+# print(X[0:4])
+# print(confusion_matrix(Y_pred, Y))
+# colors = np.where(df[LOAN_STATUS] == 1, 'y', 'k')
+# plt.scatter(list(df[LOAN_AMOUNT]), X, c=df[LOAN_STATUS])
+# plt.show()
